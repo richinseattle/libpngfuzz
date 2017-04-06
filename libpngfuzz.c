@@ -191,7 +191,7 @@ int main (int argc, char * argv []) {
 
     if (setjmp(png_jmpbuf(png_ptr))) {
         printf("error during init io\n");
-        goto cleanup;
+        return -1;
     }
 
     png_init_io(png_ptr, fh);
@@ -210,6 +210,7 @@ int main (int argc, char * argv []) {
     png_bytep * rows = (png_bytep *) malloc(height * sizeof(png_bytep));
     if (rows != NULL) {
         size_t i;
+
         for (i = 0; i < height; i++)
             rows[i] = (png_byte *) malloc(rowbytes);
 
