@@ -120,6 +120,7 @@ int pngPatch (unsigned char * png, size_t len) {
 
 
 int main (int argc, char * argv []) {
+  int retval = -1;
 
 	if (argc < 2)
 	{
@@ -131,14 +132,14 @@ int main (int argc, char * argv []) {
 
     FILE * fh = fopen(argv[1], "rb");
     if (fh == NULL)
-        return -1;
+        goto cleanup;
 
     fseek(fh, 0, SEEK_END);
     size_t filesize = ftell(fh);
     fseek(fh, 0, SEEK_SET);
 
     if (filesize < 8)
-        return -1;
+        goto cleanup;
 
     unsigned char * toPatch = malloc(filesize);
     fread(toPatch, 1, filesize, fh);
@@ -148,31 +149,34 @@ int main (int argc, char * argv []) {
 
     fh = fopen(argv[1], "wb");
     if (fh == NULL)
-        return -1;
+        return retval;
     fwrite(toPatch, 1, filesize, fh);
     fclose(fh);
 
     fh = fopen(argv[1], "rb");
+    if (fh == NULL)
+        return retval;
+
     char header[8];
     fread(header, 1, 8, fh);
 
     if (png_sig_cmp(header, 0, 8)) {
         printf("!png_sig_cmp\n");
-        return -1;
+        goto cleanup;
     }
 
     png_structp png_ptr = png_create_read_struct (PNG_LIBPNG_VER_STRING,
         NULL, NULL, NULL);
 
     if (! png_ptr)
-        return -1;
+        goto cleanup;
     else
         printf("png_ptr created\n");
 
     png_infop info_ptr  = png_create_info_struct(png_ptr);
     if (! info_ptr) {
         png_destroy_read_struct(&png_ptr, NULL, NULL);
-        return -1;
+        goto cleanup;
     }
     else
         printf("info_ptr created\n");
@@ -180,14 +184,14 @@ int main (int argc, char * argv []) {
     png_infop end_info = png_create_info_struct(png_ptr);
     if (! end_info) {
         png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        return -1;
+        goto cleanup;
     }
     else
         printf("end_info created\n");
 
     if (setjmp(png_jmpbuf(png_ptr))) {
         printf("error during init io\n");
-        return -1;
+        goto cleanup;
     }
 
     png_init_io(png_ptr, fh);
@@ -217,5 +221,10 @@ int main (int argc, char * argv []) {
     free(rows);
     png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
-    return 0;
+    retval = 0;
+
+cleanup:
+  close(fh);
+  return retval;
+
 }
